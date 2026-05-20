@@ -402,7 +402,7 @@ function buildSales(){
   const regMap={};d.forEach(s=>{regMap[s.region]=(regMap[s.region]||0)+s.revenue;});
   const rL=Object.keys(regMap).sort((a,b)=>regMap[b]-regMap[a]),rV=rL.map(r=>regMap[r]);
   dc('reg');
-  if(d.length>0) charts.reg=new Chart(document.getElementById('cReg'),{type:'bar',data:{labels:rL.map(r=>r.split('-')[0]),datasets:[{data:rV,backgroundColor:RC.slice(0,rL.length),borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{callback:v=>fmtK(v),font:{size:10}}}}}});
+  if(d.length>0) CH.reg=new Chart(document.getElementById('cReg'),{type:'bar',data:{labels:rL.map(r=>r.split('-')[0]),datasets:[{data:rV,backgroundColor:RC.slice(0,rL.length),borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{callback:v=>fmtK(v),font:{size:10}}}}}});
 
   // Fuel donut
   const fuelMap={};d.forEach(s=>{fuelMap[s.fuel]=(fuelMap[s.fuel]||0)+s.liters;});
@@ -458,6 +458,7 @@ function buildSales(){
     <td style="font-family:'DM Mono',monospace;font-size:11px">${fmtN(s.margin)}</td>
     <td><span class="vpill ${s.margin_pct>10?'pos':s.margin_pct<5?'neg':''}" style="${s.margin_pct>=5&&s.margin_pct<=10?'background:#FEF9E7;color:var(--amber)':''}">${s.margin_pct.toFixed(1)}%</span></td>
   </tr>`).join('');
+  if(CH) CH.reg=CH.reg; // alias fix
 }
 
 // ── FINANCE FILTERS ───────────────────────────────
