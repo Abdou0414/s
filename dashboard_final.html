@@ -458,7 +458,6 @@ function buildSales(){
     <td style="font-family:'DM Mono',monospace;font-size:11px">${fmtN(s.margin)}</td>
     <td><span class="vpill ${s.margin_pct>10?'pos':s.margin_pct<5?'neg':''}" style="${s.margin_pct>=5&&s.margin_pct<=10?'background:#FEF9E7;color:var(--amber)':''}">${s.margin_pct.toFixed(1)}%</span></td>
   </tr>`).join('');
-  if(CH) CH.reg=CH.reg; // alias fix
 }
 
 // ── FINANCE FILTERS ───────────────────────────────
