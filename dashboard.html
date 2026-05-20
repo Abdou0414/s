@@ -294,7 +294,7 @@ function processData(rows){
     const liters = parseFloat(r['Liters'] || r[keys[5]]) || 0;
     const price = parseFloat(r['Unit Price\n(MAD/L)'] || r['Unit Price (MAD/L)'] || r[keys[6]]) || 0;
     const cost = parseFloat(r['Cost\n(MAD)'] || r['Cost (MAD)'] || r[keys[8]]) || 0;
-    const revenue = liters * price || parseFloat(r['Revenue\n(MAD)'] || r['Revenue (MAD)'] || r[keys[7]]) || 0;
+    const revenue = parseFloat(r[keys[7]]) || liters * price || 0;
     const margin = revenue - cost;
     const margin_pct = revenue ? (margin/revenue*100) : 0;
 
