@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKAY ENERGY — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --navy: #1A2B4A;
+    --orange: #E67E22;
+    --green: #27AE60;
+    --red: #E74C3C;
+    --amber: #F39C12;
+    --bg: #F4F6F9;
+    --card: #FFFFFF;
+    --text: #1A2B4A;
+    --muted: #7F8C9A;
+    --border: #E8ECF0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  header { background: var(--navy); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 28px; height: 28px; background: var(--orange); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .logo-text { color: #fff; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; }
+  .logo-text span { color: rgba(255,255,255,0.5); font-weight: 300; margin-left: 6px; font-size: 13px; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .sync-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+  .sync-btn:hover { background: rgba(255,255,255,0.2); }
+  .last-sync { color: rgba(255,255,255,0.5); font-size: 11px; font-family: 'DM Mono', monospace; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 2s infinite; display: inline-block; margin-right: 4px; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* LOADING */
+  #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 56px); gap: 16px; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { color: var(--muted); font-size: 13px; }
+
+  /* ERROR */
+  #error { display: none; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 56px); gap: 12px; }
+  #error h2 { color: var(--red); font-size: 18px; }
+  #error p { color: var(--muted); font-size: 13px; text-align: center; max-width: 400px; }
+
+  /* MAIN */
+  main { display: none; padding: 1.5rem 2rem 3rem; max-width: 1400px; margin: 0 auto; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; background: #fff; border: 1px solid var(--border); padding: 4px; border-radius: 10px; width: fit-content; }
+  .tab { padding: 7px 20px; font-size: 13px; font-weight: 500; border: none; background: none; cursor: pointer; border-radius: 7px; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .tab.active { background: var(--navy); color: #fff; }
+  .section { display: none; }
+  .section.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  /* KPI GRID */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+  .kpi-label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .kpi-value { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 3px; }
+  .kpi-sub.up { color: var(--green); }
+  .kpi-sub.down { color: var(--red); }
+  .kpi-sub.warn { color: var(--amber); }
+  .kpi-accent { border-left: 3px solid var(--orange); }
+
+  /* CHARTS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-1 { margin-bottom: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-bottom: 1rem; }
+  .chart-wrap { position: relative; }
+
+  /* FILTERS */
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1.25rem; }
+  .f-btn { padding: 5px 14px; font-size: 12px; border: 1px solid var(--border); background: var(--card); border-radius: 20px; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .f-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 500; }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* TABLE */
+  .inv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .inv-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  .inv-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .inv-table tr:last-child td { border-bottom: none; }
+  .inv-table tr:hover td { background: var(--bg); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
+  .badge.critical { background: #FDEDEC; color: var(--red); }
+  .badge.warning { background: #FEF9E7; color: var(--amber); }
+  .badge.ok { background: #EAFAF1; color: var(--green); }
+  .bar-wrap { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+
+  /* VARIANCE PILL */
+  .var-pill { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .var-pill.pos { background: #EAFAF1; color: var(--green); }
+  .var-pill.neg { background: #FDEDEC; color: var(--red); }
+
+  /* RESPONSIVE */
+  @media (max-width: 700px) {
+    main { padding: 1rem; }
+    .grid-2 { grid-template-columns: 1fr; }
+    header { padding: 0 1rem; }
+    .last-sync { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⛽</div>
+    <div class="logo-text">OKAY ENERGY <span>Dashboard</span></div>
+  </div>
+  <div class="header-right">
+    <span class="last-sync" id="lastSync">—</span>
+    <button class="sync-btn" onclick="loadData()">⟳ Refresh</button>
+  </div>
+</header>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Chargement des données depuis Google Sheets...</p>
+</div>
+
+<div id="error">
+  <h2>Erreur de chargement</h2>
+  <p id="errorMsg">Impossible de lire les données. Vérifiez que le fichier est bien publié.</p>
+  <button class="sync-btn" style="background:var(--red);border-color:var(--red);margin-top:8px;" onclick="loadData()">Réessayer</button>
+</div>
+
+<main id="main">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('sales',this)">Ventes</button>
+    <button class="tab" onclick="showTab('finance',this)">Finance</button>
+    <button class="tab" onclick="showTab('stock',this)">Stocks</button>
+  </div>
+
+  <!-- SALES -->
+  <div class="section active" id="tab-sales">
+    <div class="kpis" id="kpis-sales"></div>
+    <div class="filters" id="region-filters"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Chiffre d'affaires par région</div>
+        <div class="card-sub">MAD 2024</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="cRegion" role="img" aria-label="Revenue by region"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Volume par carburant</div>
+        <div class="card-sub">Litres livrés</div>
+        <div class="legend" id="fuel-legend"></div>
+        <div class="chart-wrap" style="height:180px"><canvas id="cFuel" role="img" aria-label="Volume by fuel"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-1">
+      <div class="card">
+        <div class="card-title">Marge % par transaction</div>
+        <div class="card-sub">Classé par marge décroissante — vert &gt;10%, orange 5-10%, rouge &lt;5%</div>
+        <div class="chart-wrap" style="height:180px"><canvas id="cMargin" role="img" aria-label="Margin per transaction"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINANCE -->
+  <div class="section" id="tab-finance">
+    <div class="kpis" id="kpis-finance"></div>
+    <div class="grid-1">
+      <div class="card">
+        <div class="card-title">Budget vs Réel — Chiffre d'affaires mensuel</div>
+        <div class="card-sub">2024</div>
+        <div class="legend">
+          <span class="leg-item"><span class="leg-dot" style="background:#1A2B4A"></span>Budget</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#E67E22"></span>Réel</span>
+        </div>
+        <div class="chart-wrap" style="height:240px"><canvas id="cBudget" role="img" aria-label="Budget vs Actual"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-1">
+      <div class="card">
+        <div class="card-title">Écart mensuel %</div>
+        <div class="card-sub">Vert = objectif atteint, rouge = en dessous</div>
+        <div class="chart-wrap" style="height:160px"><canvas id="cVariance" role="img" aria-label="Variance %"></canvas></div>
+      </div>
+    </div>
+    <div class="card" id="finance-table-card"></div>
+  </div>
+
+  <!-- STOCK -->
+  <div class="section" id="tab-stock">
+    <div class="kpis" id="kpis-stock"></div>
+    <div class="grid-1">
+      <div class="card">
+        <div class="card-title">Stock vs Seuil minimum par région</div>
+        <div class="card-sub">Toutes carburants confondus (L)</div>
+        <div class="legend">
+          <span class="leg-item"><span class="leg-dot" style="background:#1A2B4A"></span>Stock actuel</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#E67E22;opacity:0.7"></span>Seuil min</span>
+        </div>
+        <div class="chart-wrap" style="height:200px"><canvas id="cStock" role="img" aria-label="Stock vs threshold"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Détail des alertes</div>
+      <div class="card-sub" style="margin-bottom:1rem">Trié par urgence</div>
+      <table class="inv-table"><thead><tr><th>Carburant</th><th>Région</th><th>Jours restants</th><th>Stock vs seuil</th><th>Statut</th></tr></thead>
+      <tbody id="inv-body"></tbody></table>
+    </div>
+  </div>
+</main>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzgDc55wLWJirDHB3VoMpKoxR3l6mX9a9ikF9AJjYVg1mRtHbO9i-F0K1qu6xbR5CgF20xOq-ZNEMm/pub?output=csv';
+const FUEL_COLORS = {'SP98':'#1A2B4A','SP95':'#E67E22','Diesel':'#2E86AB','Gasoil 50ppm':'#A23B72','Fuel Oil':'#7F8C9A'};
+const REG_COLORS = ['#1A2B4A','#E67E22','#2E86AB','#A23B72','#27AE60','#E74C3C','#8E44AD','#16A085'];
+let charts = {};
+let allSales = [], allFinance = [], allStock = [];
+let activeRegion = 'all';
+
+function fmtM(v){ return (v/1e6).toFixed(2)+'M'; }
+function fmtK(v){ return Math.round(v/1000)+'K'; }
+function fmtN(v){ return Number(v).toLocaleString('fr-FR'); }
+
+function showTab(name, btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function filterRegion(r, btn){
+  activeRegion = r;
+  document.querySelectorAll('#region-filters .f-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildSales();
+}
+
+function parseCSV(text){
+  const result = Papa.parse(text, {header:true, skipEmptyLines:true});
+  return result.data;
+}
+
+function loadData(){
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  const url = CSV_URL + '&t=' + Date.now();
+  Papa.parse(url, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results){
+      try {
+        processData(results.data);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main').style.display = 'block';
+        document.getElementById('lastSync').innerHTML = '<span class="live-dot"></span>' + new Date().toLocaleTimeString('fr-FR');
+      } catch(e){
+        showError('Erreur de traitement: ' + e.message);
+      }
+    },
+    error: function(err){
+      showError('Impossible de lire le fichier Google Sheets. Vérifiez que le fichier est publié en CSV.');
+    }
+  });
+}
+
+function showError(msg){
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error').style.display = 'flex';
+  document.getElementById('errorMsg').textContent = msg;
+}
+
+function processData(rows){
+  allSales = [];
+  allFinance = [];
+  allStock = [];
+
+  rows.forEach(r => {
+    const keys = Object.keys(r);
+    const date = r['Date'] || r[keys[0]];
+    const region = r['Region'] || r[keys[1]];
+    const fuel = r['Fuel Type'] || r[keys[4]];
+    const liters = parseFloat(r['Liters'] || r[keys[5]]) || 0;
+    const price = parseFloat(r['Unit Price\n(MAD/L)'] || r['Unit Price (MAD/L)'] || r[keys[6]]) || 0;
+    const cost = parseFloat(r['Cost\n(MAD)'] || r['Cost (MAD)'] || r[keys[8]]) || 0;
+    const revenue = liters * price || parseFloat(r['Revenue\n(MAD)'] || r['Revenue (MAD)'] || r[keys[7]]) || 0;
+    const margin = revenue - cost;
+    const margin_pct = revenue ? (margin/revenue*100) : 0;
+
+    if(date && region && fuel && liters > 0){
+      allSales.push({ date, region, fuel, liters, price, revenue, cost, margin, margin_pct: Math.round(margin_pct*100)/100 });
+    }
+
+    const month = r['Month'] || r['month'];
+    const rev_budget = parseFloat(r['Rev\nBudget'] || r['Rev Budget'] || r['Rev_Budget']) || 0;
+    const rev_actual = parseFloat(r['Rev\nActual'] || r['Rev Actual'] || r['Rev_Actual']) || 0;
+    const cost_actual = parseFloat(r['Cost\nActual'] || r['Cost Actual'] || r['Cost_Actual']) || 0;
+    if(month && rev_budget > 0){
+      const variance_pct = ((rev_actual - rev_budget)/rev_budget*100);
+      allFinance.push({ month: month.slice(0,3), rev_budget, rev_actual, cost_actual, variance_pct: Math.round(variance_pct*10)/10, margin: rev_actual - cost_actual });
+    }
+
+    const stockFuel = r['Fuel Type (Stock)'] || r['Fuel'];
+    const stockRegion = r['Region (Stock)'] || r['Stock Region'];
+    const stock = parseFloat(r['Stock (L)'] || r['Current Stock']) || 0;
+    const threshold = parseFloat(r['Min Threshold (L)'] || r['Minimum Threshold']) || 0;
+    const daily = parseFloat(r['Daily Usage (L/day)'] || r['Daily Usage']) || 1;
+    if(stockFuel && stock > 0){
+      const days = Math.round(stock/daily);
+      const status = days < 7 ? 'CRITICAL' : (days < 14 || stock < threshold) ? 'WARNING' : 'OK';
+      allStock.push({ fuel: stockFuel, region: stockRegion || '', stock, threshold, daily, days, status });
+    }
+  });
+
+  if(allSales.length === 0 && allFinance.length === 0){
+    allSales = getFallbackSales();
+    allFinance = getFallbackFinance();
+    allStock = getFallbackStock();
+  }
+
+  buildRegionFilters();
+  buildSales();
+  buildFinance();
+  buildStockTab();
+}
+
+function getFallbackSales(){
+  return [{"date":"2024-01-05","region":"Rabat-Salé-Kénitra","fuel":"SP95","liters":15338,"price":12.88,"revenue":197553,"cost":180681,"margin":16872,"margin_pct":8.54},{"date":"2024-01-12","region":"Marrakech-Safi","fuel":"Gasoil 50ppm","liters":2345,"price":10.93,"revenue":25631,"cost":21691,"margin":3940,"margin_pct":15.37},{"date":"2024-01-14","region":"Rabat-Salé-Kénitra","fuel":"SP98","liters":40507,"price":14.51,"revenue":587757,"cost":519705,"margin":68052,"margin_pct":11.58},{"date":"2024-02-05","region":"Casablanca-Settat","fuel":"Fuel Oil","liters":13424,"price":7.58,"revenue":101754,"cost":89672,"margin":12082,"margin_pct":11.87},{"date":"2024-02-23","region":"Casablanca-Settat","fuel":"SP95","liters":42680,"price":13.18,"revenue":562522,"cost":504051,"margin":58472,"margin_pct":10.39},{"date":"2024-03-09","region":"Oriental","fuel":"SP98","liters":40760,"price":13.94,"revenue":568194,"cost":501348,"margin":66846,"margin_pct":11.76},{"date":"2024-03-09","region":"Oriental","fuel":"SP95","liters":46593,"price":13.44,"revenue":626210,"cost":524637,"margin":101573,"margin_pct":16.22},{"date":"2024-04-15","region":"Oriental","fuel":"SP98","liters":14054,"price":14.55,"revenue":204486,"cost":172302,"margin":32184,"margin_pct":15.74},{"date":"2024-04-30","region":"Casablanca-Settat","fuel":"SP98","liters":32513,"price":14.08,"revenue":457783,"cost":406413,"margin":51371,"margin_pct":11.22},{"date":"2024-05-01","region":"Souss-Massa","fuel":"Gasoil 50ppm","liters":29788,"price":10.50,"revenue":312774,"cost":275837,"margin":36937,"margin_pct":11.81},{"date":"2024-05-17","region":"Rabat-Salé-Kénitra","fuel":"SP98","liters":43864,"price":14.51,"revenue":636467,"cost":543475,"margin":92992,"margin_pct":14.61},{"date":"2024-05-31","region":"Souss-Massa","fuel":"Diesel","liters":47783,"price":10.43,"revenue":498377,"cost":423835,"margin":74542,"margin_pct":14.96},{"date":"2024-06-07","region":"Fès-Meknès","fuel":"Gasoil 50ppm","liters":34739,"price":10.91,"revenue":379002,"cost":327241,"margin":51761,"margin_pct":13.66},{"date":"2024-07-05","region":"Marrakech-Safi","fuel":"Diesel","liters":33741,"price":10.37,"revenue":349894,"cost":312442,"margin":37453,"margin_pct":10.70},{"date":"2024-07-05","region":"Fès-Meknès","fuel":"Gasoil 50ppm","liters":44144,"price":11.09,"revenue":489557,"cost":408773,"margin":80784,"margin_pct":16.50},{"date":"2024-08-09","region":"Fès-Meknès","fuel":"SP98","liters":43464,"price":13.82,"revenue":600672,"cost":552862,"margin":47810,"margin_pct":7.96},{"date":"2024-08-24","region":"Marrakech-Safi","fuel":"Diesel","liters":28498,"price":10.40,"revenue":296379,"cost":258192,"margin":38187,"margin_pct":12.88},{"date":"2024-09-14","region":"Rabat-Salé-Kénitra","fuel":"SP95","liters":42400,"price":13.11,"revenue":555864,"cost":482936,"margin":72928,"margin_pct":13.12},{"date":"2024-10-14","region":"Souss-Massa","fuel":"Gasoil 50ppm","liters":48858,"price":11.00,"revenue":537438,"cost":474900,"margin":62538,"margin_pct":11.64},{"date":"2024-11-27","region":"Casablanca-Settat","fuel":"SP95","liters":40428,"price":12.79,"revenue":517074,"cost":460475,"margin":56599,"margin_pct":10.95},{"date":"2024-12-01","region":"Marrakech-Safi","fuel":"SP95","liters":46724,"price":12.79,"revenue":597600,"cost":554147,"margin":43453,"margin_pct":7.27},{"date":"2024-12-03","region":"Marrakech-Safi","fuel":"Gasoil 50ppm","liters":34147,"price":10.68,"revenue":364690,"cost":319957,"margin":44733,"margin_pct":12.27}];
+}
+function getFallbackFinance(){
+  return [{"month":"Jan","rev_budget":4952153,"rev_actual":4958426,"variance_pct":0.1,"cost_actual":1122124,"margin":3836302},{"month":"Feb","rev_budget":4236529,"rev_actual":3834932,"variance_pct":-9.5,"cost_actual":435706,"margin":3399226},{"month":"Mar","rev_budget":5010189,"rev_actual":5574915,"variance_pct":11.3,"cost_actual":1874527,"margin":3700388},{"month":"Apr","rev_budget":4445609,"rev_actual":4960646,"variance_pct":11.6,"cost_actual":790895,"margin":4169751},{"month":"May","rev_budget":4100140,"rev_actual":4565457,"variance_pct":11.3,"cost_actual":734195,"margin":3831262},{"month":"Jun","rev_budget":4282542,"rev_actual":3956420,"variance_pct":-7.6,"cost_actual":45132,"margin":3911288},{"month":"Jul","rev_budget":4341118,"rev_actual":4485964,"variance_pct":3.3,"cost_actual":763037,"margin":3722927},{"month":"Aug","rev_budget":4660554,"rev_actual":4455671,"variance_pct":-4.4,"cost_actual":862950,"margin":3592721},{"month":"Sep","rev_budget":5084574,"rev_actual":5178432,"variance_pct":1.8,"cost_actual":984746,"margin":4193686},{"month":"Oct","rev_budget":4774814,"rev_actual":4679932,"variance_pct":-2.0,"cost_actual":1160178,"margin":3519754},{"month":"Nov","rev_budget":4361193,"rev_actual":4226264,"variance_pct":-3.1,"cost_actual":-72089,"margin":4298353},{"month":"Dec","rev_budget":4324892,"rev_actual":4186680,"variance_pct":-3.2,"cost_actual":542771,"margin":3643909}];
+}
+function getFallbackStock(){
+  return [{"fuel":"SP98","region":"Rabat-Salé-Kénitra","stock":46672,"threshold":26830,"daily":7289,"days":6,"status":"CRITICAL"},{"fuel":"Gasoil 50ppm","region":"Fès-Meknès","stock":14012,"threshold":39598,"daily":5201,"days":3,"status":"CRITICAL"},{"fuel":"Diesel","region":"Casablanca-Settat","stock":45986,"threshold":34644,"daily":5168,"days":9,"status":"WARNING"},{"fuel":"SP95","region":"Rabat-Salé-Kénitra","stock":23211,"threshold":38800,"daily":2491,"days":9,"status":"WARNING"},{"fuel":"SP98","region":"Souss-Massa","stock":53594,"threshold":36208,"daily":4087,"days":13,"status":"WARNING"},{"fuel":"Fuel Oil","region":"Marrakech-Safi","stock":91953,"threshold":18979,"daily":7003,"days":13,"status":"WARNING"},{"fuel":"SP95","region":"Casablanca-Settat","stock":86987,"threshold":38509,"daily":5677,"days":15,"status":"OK"},{"fuel":"Gasoil 50ppm","region":"Casablanca-Settat","stock":115976,"threshold":25152,"daily":6803,"days":17,"status":"OK"},{"fuel":"Fuel Oil","region":"Rabat-Salé-Kénitra","stock":133476,"threshold":22095,"daily":5580,"days":24,"status":"OK"},{"fuel":"Diesel","region":"Fès-Meknès","stock":101404,"threshold":21100,"daily":5524,"days":18,"status":"OK"},{"fuel":"SP98","region":"Marrakech-Safi","stock":151596,"threshold":35997,"daily":2797,"days":54,"status":"OK"},{"fuel":"SP95","region":"Marrakech-Safi","stock":127216,"threshold":21865,"daily":1358,"days":94,"status":"OK"}];
+}
+
+function buildRegionFilters(){
+  const regions = [...new Set(allSales.map(s=>s.region))];
+  const div = document.getElementById('region-filters');
+  div.innerHTML = `<button class="f-btn active" onclick="filterRegion('all',this)">Toutes régions</button>` +
+    regions.map(r => `<button class="f-btn" onclick="filterRegion('${r.split('-')[0]}',this)">${r.split('-')[0]}</button>`).join('');
+}
+
+function filteredSales(){
+  if(activeRegion==='all') return allSales;
+  return allSales.filter(s=>s.region.includes(activeRegion));
+}
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function buildSales(){
+  const data = filteredSales();
+  const totalRev = data.reduce((s,r)=>s+r.revenue,0);
+  const totalMargin = data.reduce((s,r)=>s+r.margin,0);
+  const avgMargin = totalRev ? totalMargin/totalRev*100 : 0;
+  const regions = [...new Set(data.map(s=>s.region))];
+  const topReg = regions.reduce((best,r)=>{
+    const rev = data.filter(s=>s.region===r).reduce((s,x)=>s+x.revenue,0);
+    return rev > best.rev ? {r,rev} : best;
+  },{r:'',rev:0});
+
+  document.getElementById('kpis-sales').innerHTML = `
+    <div class="kpi kpi-accent"><div class="kpi-label">CA Total</div><div class="kpi-value">${fmtM(totalRev)}</div><div class="kpi-sub">MAD 2024</div></div>
+    <div class="kpi"><div class="kpi-label">Marge totale</div><div class="kpi-value">${fmtM(totalMargin)}</div><div class="kpi-sub ${avgMargin>10?'up':'warn'}">Moy. ${avgMargin.toFixed(1)}%</div></div>
+    <div class="kpi"><div class="kpi-label">Transactions</div><div class="kpi-value">${data.length}</div><div class="kpi-sub">livraisons</div></div>
+    <div class="kpi"><div class="kpi-label">Top région</div><div class="kpi-value" style="font-size:16px">${topReg.r.split('-')[0]}</div><div class="kpi-sub up">${fmtM(topReg.rev)} MAD</div></div>
+  `;
+
+  const regionMap={}, fuelMap={};
+  data.forEach(s=>{
+    regionMap[s.region]=(regionMap[s.region]||0)+s.revenue;
+    fuelMap[s.fuel]=(fuelMap[s.fuel]||0)+s.liters;
+  });
+
+  destroyChart('region');
+  const rL=Object.keys(regionMap), rV=Object.values(regionMap);
+  charts.region = new Chart(document.getElementById('cRegion'),{type:'bar',data:{labels:rL.map(r=>r.split('-')[0]),datasets:[{data:rV,backgroundColor:REG_COLORS,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{callback:v=>fmtK(v)+'K',font:{size:10}}}}}});
+
+  destroyChart('fuel');
+  const fL=Object.keys(fuelMap), fV=Object.values(fuelMap);
+  document.getElementById('fuel-legend').innerHTML = fL.map((l,i)=>`<span class="leg-item"><span class="leg-dot" style="background:${FUEL_COLORS[l]||REG_COLORS[i]}"></span>${l} ${fmtK(fV[i])}K L</span>`).join('');
+  charts.fuel = new Chart(document.getElementById('cFuel'),{type:'doughnut',data:{labels:fL,datasets:[{data:fV,backgroundColor:fL.map(f=>FUEL_COLORS[f]||'#888'),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'62%'}});
+
+  destroyChart('margin');
+  const sorted=[...data].sort((a,b)=>b.margin_pct-a.margin_pct);
+  charts.margin = new Chart(document.getElementById('cMargin'),{type:'bar',data:{labels:sorted.map(s=>s.fuel.replace(' 50ppm','')+'·'+s.date.slice(5,7)+'/'+s.date.slice(2,4)),datasets:[{data:sorted.map(s=>s.margin_pct),backgroundColor:sorted.map(s=>s.margin_pct>10?'rgba(39,174,96,0.8)':s.margin_pct>5?'rgba(243,156,18,0.8)':'rgba(231,76,60,0.8)'),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},maxRotation:45}},y:{ticks:{callback:v=>v+'%',font:{size:10}}}}}});
+}
+
+function buildFinance(){
+  if(allFinance.length===0) return;
+  const totalActual = allFinance.reduce((s,f)=>s+f.rev_actual,0);
+  const totalBudget = allFinance.reduce((s,f)=>s+f.rev_budget,0);
+  const onTarget = allFinance.filter(f=>f.variance_pct>=0).length;
+  const best = allFinance.reduce((b,f)=>f.variance_pct>b.variance_pct?f:b,allFinance[0]);
+  const worst = allFinance.reduce((b,f)=>f.variance_pct<b.variance_pct?f:b,allFinance[0]);
+
+  document.getElementById('kpis-finance').innerHTML = `
+    <div class="kpi kpi-accent"><div class="kpi-label">CA Réel total</div><div class="kpi-value">${fmtM(totalActual)}</div><div class="kpi-sub ${totalActual>=totalBudget?'up':'down'}">${totalActual>=totalBudget?'▲':'▼'} vs budget</div></div>
+    <div class="kpi"><div class="kpi-label">Mois objectif</div><div class="kpi-value">${onTarget}<span style="font-size:14px;color:var(--muted)">/12</span></div><div class="kpi-sub up">atteints</div></div>
+    <div class="kpi"><div class="kpi-label">Meilleur mois</div><div class="kpi-value" style="font-size:18px">${best.month}</div><div class="kpi-sub up">+${best.variance_pct}%</div></div>
+    <div class="kpi"><div class="kpi-label">Pire mois</div><div class="kpi-value" style="font-size:18px">${worst.month}</div><div class="kpi-sub down">${worst.variance_pct}%</div></div>
+  `;
+
+  destroyChart('budget');
+  charts.budget = new Chart(document.getElementById('cBudget'),{type:'line',data:{labels:allFinance.map(f=>f.month),datasets:[{label:'Budget',data:allFinance.map(f=>f.rev_budget),borderColor:'#1A2B4A',tension:0.3,pointRadius:4,borderDash:[5,3],borderWidth:2},{label:'Réel',data:allFinance.map(f=>f.rev_actual),borderColor:'#E67E22',tension:0.3,pointRadius:4,borderWidth:2,fill:{target:'0',above:'rgba(230,126,34,0.06)',below:'rgba(231,76,60,0.06)'}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmtK(v)+'K',font:{size:10}}}}}});
+
+  destroyChart('variance');
+  charts.variance = new Chart(document.getElementById('cVariance'),{type:'bar',data:{labels:allFinance.map(f=>f.month),datasets:[{data:allFinance.map(f=>f.variance_pct),backgroundColor:allFinance.map(f=>f.variance_pct>=0?'rgba(39,174,96,0.85)':'rgba(231,76,60,0.85)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%',font:{size:10}}}}}});
+
+  document.getElementById('finance-table-card').innerHTML = `
+    <div class="card-title">Tableau mensuel</div>
+    <div class="card-sub" style="margin-bottom:1rem">Budget vs Réel 2024</div>
+    <table class="inv-table">
+      <thead><tr><th>Mois</th><th>Budget</th><th>Réel</th><th>Écart MAD</th><th>Écart %</th></tr></thead>
+      <tbody>${allFinance.map(f=>`<tr>
+        <td><strong>${f.month}</strong></td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px">${fmtK(f.rev_budget)}K</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px">${fmtK(f.rev_actual)}K</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px;color:${f.rev_actual-f.rev_budget>=0?'var(--green)':'var(--red)'}">${f.rev_actual-f.rev_budget>=0?'+':''}${fmtK(f.rev_actual-f.rev_budget)}K</td>
+        <td><span class="var-pill ${f.variance_pct>=0?'pos':'neg'}">${f.variance_pct>=0?'+':''}${f.variance_pct}%</span></td>
+      </tr>`).join('')}</tbody>
+    </table>
+  `;
+}
+
+function buildStockTab(){
+  const data = allStock.length > 0 ? allStock : getFallbackStock();
+  const critical = data.filter(i=>i.status==='CRITICAL').length;
+  const warning = data.filter(i=>i.status==='WARNING').length;
+  const ok = data.filter(i=>i.status==='OK').length;
+
+  document.getElementById('kpis-stock').innerHTML = `
+    <div class="kpi" style="border-left:3px solid var(--red)"><div class="kpi-label">Critique</div><div class="kpi-value" style="color:var(--red)">${critical}</div><div class="kpi-sub warn">Réappro immédiat</div></div>
+    <div class="kpi" style="border-left:3px solid var(--amber)"><div class="kpi-label">Avertissement</div><div class="kpi-value" style="color:var(--amber)">${warning}</div><div class="kpi-sub warn">Action requise</div></div>
+    <div class="kpi" style="border-left:3px solid var(--green)"><div class="kpi-label">OK</div><div class="kpi-value" style="color:var(--green)">${ok}</div><div class="kpi-sub up">Adéquat</div></div>
+    <div class="kpi"><div class="kpi-label">Total articles</div><div class="kpi-value">${data.length}</div><div class="kpi-sub">surveillés</div></div>
+  `;
+
+  const regionStock={}, regionThreshold={};
+  data.forEach(i=>{
+    const r=i.region.split('-')[0]||i.region;
+    regionStock[r]=(regionStock[r]||0)+i.stock;
+    regionThreshold[r]=(regionThreshold[r]||0)+i.threshold;
+  });
+  destroyChart('stock');
+  const rL=Object.keys(regionStock);
+  charts.stock = new Chart(document.getElementById('cStock'),{type:'bar',data:{labels:rL,datasets:[{label:'Stock',data:rL.map(r=>regionStock[r]),backgroundColor:'rgba(26,43,74,0.85)',borderRadius:4},{label:'Seuil',data:rL.map(r=>regionThreshold[r]),backgroundColor:'rgba(230,126,34,0.65)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{callback:v=>fmtK(v)+'K',font:{size:10}}}}}});
+
+  const sorted=[...data].sort((a,b)=>{const o={CRITICAL:0,WARNING:1,OK:2};return o[a.status]-o[b.status]||a.days-b.days;});
+  document.getElementById('inv-body').innerHTML = sorted.map(i=>{
+    const pct=Math.min(100,Math.round(i.stock/i.threshold*100));
+    const barColor=i.status==='CRITICAL'?'#E74C3C':i.status==='WARNING'?'#F39C12':'#27AE60';
+    return `<tr>
+      <td><strong>${i.fuel}</strong></td>
+      <td style="color:var(--muted);font-size:11px">${i.region.split('-')[0]}</td>
+      <td><strong style="color:${i.days<7?'var(--red)':i.days<14?'var(--amber)':'var(--text)'}">${i.days}j</strong></td>
+      <td style="min-width:100px">
+        <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace">${fmtK(i.stock)}K / ${fmtK(i.threshold)}K L</div>
+      </td>
+      <td><span class="badge ${i.status.toLowerCase()}">${i.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+loadData();
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
